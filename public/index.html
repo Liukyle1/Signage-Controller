@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Signage Controller</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a1a;
+      padding: 20px 28px 40px;
+    }
+    h1 { font-size: 22px; margin-bottom: 2px; }
+    .subtitle { color: #666; font-size: 13px; margin-bottom: 20px; }
+
+    /* ── shared ──────────────────────────────────────────── */
+    .card {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 18px 22px;
+      margin-bottom: 16px;
+    }
+    .card h2 { font-size: 14px; margin-bottom: 12px; color: #333; }
+
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary   { background: #0d6efd; color: #fff; }
+    .btn-secondary { background: #6c757d; color: #fff; }
+    .btn-success   { background: #198754; color: #fff; }
+    .btn-primary:hover:not(:disabled)   { background: #0b5ed7; }
+    .btn-secondary:hover:not(:disabled) { background: #5a6268; }
+    .btn-success:hover:not(:disabled)   { background: #157347; }
+
+    input[type="file"] { font-size: 12px; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-unknown { background: #eee; color: #999; }
+    .badge-ok      { background: #d4edda; color: #155724; }
+    .badge-fail    { background: #f8d7da; color: #721c24; }
+    .badge-busy    { background: #fff3cd; color: #856404; }
+
+    .status-msg {
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      min-height: 18px;
+    }
+    .s-ok   { color: #155724; }
+    .s-warn { color: #856404; }
+    .s-err  { color: #721c24; }
+
+    /* ── per-Pi grid ─────────────────────────────────────── */
+    .pi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    @media (min-width: 900px) { .pi-grid { grid-template-columns: repeat(4, 1fr); } }
+
+    .pi-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .pi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pi-header .name { font-weight: 700; font-size: 13px; }
+    .pi-header .host { font-size: 11px; color: #888; }
+    .pi-card .file-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .pi-card .file-row input[type="file"] { min-width: 0; flex: 1; }
+    .pi-card .file-name { font-size: 11px; color: #555; word-break: break-all; min-height: 16px; }
+
+    /* ── deploy-all section ───────────────────────────────── */
+    .deploy-all-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    @media (min-width: 900px) { .deploy-all-grid { grid-template-columns: repeat(4, 1fr); } }
+    .da-slot {
+      border: 1px dashed #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 12px;
+    }
+    .da-slot .label { font-weight: 600; margin-bottom: 4px; font-size: 12px; }
+    .da-slot .file-name { font-size: 11px; color: #555; word-break: break-all; min-height: 16px; }
+
+    /* ── results log ─────────────────────────────────────── */
+    .results {
+      margin-top: 10px;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .top-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+
+  <h1>Signage Controller</h1>
+  <p class="subtitle">Per-display video deployment to Raspberry Pi signage players</p>
+
+  <div class="top-bar">
+    <button class="btn-secondary" id="btnTest">Test Connectivity</button>
+    <span class="status-msg" id="globalStatus"></span>
+  </div>
+
+  <!-- ── Per-Pi Cards ────────────────────────────────────── -->
+  <div class="card">
+    <h2>Individual Display Deploy</h2>
+    <div class="pi-grid" id="piGrid"></div>
+  </div>
+
+  <!-- ── Deploy All ──────────────────────────────────────── -->
+  <div class="card">
+    <h2>Deploy to All Displays</h2>
+    <p style="font-size:12px;color:#666;margin-bottom:10px">Pick a different MP4 for each display, then deploy in one batch. Only displays with a file selected will be updated.</p>
+    <div class="deploy-all-grid" id="daGrid"></div>
+    <button class="btn-success" id="btnDeployAll">Deploy All Selected</button>
+    <div class="status-msg" id="daStatus"></div>
+    <div class="results" id="daResults"></div>
+  </div>
+
+<script>
+// ── State ───────────────────────────────────────────────
+let piList = [];
+
+// ── Init ────────────────────────────────────────────────
+(async function init() {
+  try {
+    const res = await fetch("/api/pis");
+    piList = await res.json();
+  } catch {
+    piList = [
+      { id:"pi1", name:"Display 1", host:"192.168.100.10" },
+      { id:"pi2", name:"Display 2", host:"192.168.100.11" },
+      { id:"pi3", name:"Display 3", host:"192.168.100.12" },
+      { id:"pi4", name:"Display 4", host:"192.168.100.13" },
+    ];
+  }
+  renderPiCards();
+  renderDeployAllSlots();
+})();
+
+// ── Per-Pi cards ────────────────────────────────────────
+function renderPiCards() {
+  const grid = document.getElementById("piGrid");
+  grid.innerHTML = piList.map((pi) => `
+    <div class="pi-card" id="card-${pi.id}">
+      <div class="pi-header">
+        <div>
+          <span class="name">${pi.name}</span><br>
+          <span class="host">${pi.host}</span>
+        </div>
+        <span class="badge badge-unknown" id="badge-${pi.id}">Unknown</span>
+      </div>
+      <div class="file-row">
+        <input type="file" accept=".mp4,video/mp4" id="file-${pi.id}" />
+      </div>
+      <div class="file-name" id="fname-${pi.id}"></div>
+      <div>
+        <button class="btn-primary" id="btn-${pi.id}" onclick="deploySingle('${pi.id}')">Deploy</button>
+      </div>
+      <div class="status-msg" id="status-${pi.id}"></div>
+    </div>
+  `).join("");
+
+  // File-name preview listeners
+  piList.forEach((pi) => {
+    document.getElementById(`file-${pi.id}`).addEventListener("change", (e) => {
+      const f = e.target.files[0];
+      document.getElementById(`fname-${pi.id}`).textContent = f ? f.name : "";
+    });
+  });
+}
+
+// ── Single-Pi deploy ────────────────────────────────────
+async function deploySingle(id) {
+  const pi = piList.find((p) => p.id === id);
+  const fileInput = document.getElementById(`file-${id}`);
+  const btn = document.getElementById(`btn-${id}`);
+  const badge = document.getElementById(`badge-${id}`);
+  const status = document.getElementById(`status-${id}`);
+
+  const file = fileInput.files[0];
+  if (!file) { setMsg(status, "No file selected", "err"); return; }
+  if (!file.name.toLowerCase().endsWith(".mp4")) { setMsg(status, "Only .mp4 accepted", "err"); return; }
+
+  btn.disabled = true;
+  setBadge(badge, "busy", "Deploying...");
+  setMsg(status, `Uploading ${file.name}...`, "warn");
+
+  try {
+    const form = new FormData();
+    form.append("video", file);
+    const res = await fetch(`/api/pis/${id}/upload-and-deploy`, { method: "POST", body: form });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      setBadge(badge, "fail", "Failed");
+      setMsg(status, data.error || "Deploy failed", "err");
+    } else {
+      setBadge(badge, "ok", "Deployed");
+      setMsg(status, "Deployed successfully", "ok");
+    }
+  } catch (err) {
+    setBadge(badge, "fail", "Error");
+    setMsg(status, err.message, "err");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Deploy-all section ──────────────────────────────────
+function renderDeployAllSlots() {
+  const grid = document.getElementById("daGrid");
+  grid.innerHTML = piList.map((pi) => `
+    <div class="da-slot">
+      <div class="label">${pi.name} <span style="font-weight:400;color:#888">(${pi.host})</span></div>
+      <input type="file" accept=".mp4,video/mp4" id="da-file-${pi.id}" />
+      <div class="file-name" id="da-fname-${pi.id}"></div>
+    </div>
+  `).join("");
+
+  piList.forEach((pi) => {
+    document.getElementById(`da-file-${pi.id}`).addEventListener("change", (e) => {
+      const f = e.target.files[0];
+      document.getElementById(`da-fname-${pi.id}`).textContent = f ? f.name : "";
+    });
+  });
+}
+
+document.getElementById("btnDeployAll").addEventListener("click", async () => {
+  const btn = document.getElementById("btnDeployAll");
+  const status = document.getElementById("daStatus");
+  const results = document.getElementById("daResults");
+
+  const form = new FormData();
+  let count = 0;
+
+  piList.forEach((pi) => {
+    const input = document.getElementById(`da-file-${pi.id}`);
+    const file = input.files[0];
+    if (file) {
+      if (!file.name.toLowerCase().endsWith(".mp4")) return;
+      form.append(`video_${pi.id}`, file);
+      count++;
+    }
+  });
+
+  if (count === 0) { setMsg(status, "Select at least one file", "err"); return; }
+
+  btn.disabled = true;
+  document.getElementById("btnTest").disabled = true;
+  setMsg(status, `Deploying to ${count} display(s)...`, "warn");
+
+  // Set per-Pi badges to busy for Pis with files
+  piList.forEach((pi) => {
+    const input = document.getElementById(`da-file-${pi.id}`);
+    if (input.files[0]) {
+      setBadge(document.getElementById(`badge-${pi.id}`), "busy", "Deploying...");
+    }
+  });
+
+  try {
+    const res = await fetch("/api/deploy-all", { method: "POST", body: form });
+    const data = await res.json();
+
+    if (!res.ok && !data.summary) {
+      setMsg(status, data.error || "Deploy rejected", "err");
+      showResults(results, null);
+      return;
+    }
+
+    // Update per-Pi badges from summary
+    data.summary.forEach((s, i) => {
+      const badge = document.getElementById(`badge-${piList[i].id}`);
+      if (s.skipped) return;
+      setBadge(badge, s.ok ? "ok" : "fail", s.ok ? "Deployed" : "Failed");
+      setMsg(document.getElementById(`status-${piList[i].id}`), s.ok ? "Deployed" : (s.error || "Failed"), s.ok ? "ok" : "err");
+    });
+
+    const deployed = data.summary.filter((s) => !s.skipped);
+    if (deployed.every((s) => s.ok)) {
+      setMsg(status, `All ${deployed.length} display(s) deployed`, "ok");
+    } else {
+      setMsg(status, "Some deployments failed", "warn");
+    }
+    showResults(results, data.summary);
+  } catch (err) {
+    setMsg(status, "Error: " + err.message, "err");
+  } finally {
+    btn.disabled = false;
+    document.getElementById("btnTest").disabled = false;
+  }
+});
+
+// ── Test connectivity ───────────────────────────────────
+document.getElementById("btnTest").addEventListener("click", async () => {
+  const btn = document.getElementById("btnTest");
+  const gStatus = document.getElementById("globalStatus");
+  btn.disabled = true;
+  btn.textContent = "Testing...";
+
+  piList.forEach((pi) => {
+    setBadge(document.getElementById(`badge-${pi.id}`), "busy", "Testing...");
+  });
+
+  try {
+    const res = await fetch("/api/test-connectivity");
+    const data = await res.json();
+
+    data.summary.forEach((s, i) => {
+      const badge = document.getElementById(`badge-${piList[i].id}`);
+      setBadge(badge, s.ok ? "ok" : "fail", s.ok ? "Online" : "Offline");
+    });
+
+    setMsg(gStatus,
+      data.ok ? "All displays reachable" : "Some displays unreachable",
+      data.ok ? "ok" : "warn"
+    );
+  } catch (err) {
+    setMsg(gStatus, "Test failed: " + err.message, "err");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Test Connectivity";
+  }
+});
+
+// ── Helpers ─────────────────────────────────────────────
+function setBadge(el, type, text) {
+  if (!el) return;
+  el.className = "badge badge-" + type;
+  el.textContent = text;
+}
+
+function setMsg(el, text, level) {
+  if (!el) return;
+  el.textContent = text;
+  el.className = "status-msg" + (level ? " s-" + level : "");
+}
+
+function showResults(el, summary) {
+  if (!summary) { el.style.display = "none"; return; }
+  el.style.display = "block";
+  el.textContent = summary.map(s => {
+    if (s.skipped) return `[SKIP]  ${s.pi}  (${s.host})`;
+    const icon = s.ok ? "[OK]  " : "[FAIL]";
+    const err  = s.error ? "  -- " + s.error : "";
+    return `${icon}  ${s.pi}  (${s.host})${err}`;
+  }).join("\n");
+}
+</script>
+</body>
+</html>

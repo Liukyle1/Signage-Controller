@@ -1,0 +1,44 @@
+{
+  "name": "signage-controller",
+  "version": "1.0.0",
+  "description": "Electron desktop app to deploy MP4 signage to Raspberry Pi displays",
+  "main": "main.cjs",
+  "type": "module",
+  "scripts": {
+    "server": "node server.js",
+    "dev": "electron .",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "electron": "^34.2.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.signage.controller",
+    "productName": "Signage Controller",
+    "files": [
+      "main.cjs",
+      "preload.js",
+      "server.js",
+      "config.js",
+      "public/**/*",
+      "uploads/"
+    ],
+    "extraResources": [],
+    "win": {
+      "target": "nsis",
+      "icon": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerSidebar": null
+    }
+  }
+}
