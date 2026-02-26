@@ -1,5 +1,5 @@
-// Electron main process
-// Spins up the Express server, waits for it, then shows the window
+// main.cjs — kicks off the express server in the background
+// and opens the electron window once it's ready
 
 const { app, BrowserWindow } = require("electron");
 const path = require("path");

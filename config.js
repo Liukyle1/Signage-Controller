@@ -1,4 +1,5 @@
-// Pi targets, SSH settings, upload limits
+// config.js — all the Pi IPs, SSH flags, and upload limits live here
+// edit this when adding/removing displays
 
 export const PIS = [
   { id: "pi1", name: "Display 1", host: "192.168.100.10" },

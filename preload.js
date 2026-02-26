@@ -1,4 +1,5 @@
-// preload — just exposes the platform for now, everything else goes through fetch
+// preload.js — bridges electron and the renderer
+// keeps it minimal since the UI talks to the server via fetch
 
 const { contextBridge } = require("electron");
 

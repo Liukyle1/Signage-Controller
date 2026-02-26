@@ -1,4 +1,5 @@
-// Express backend for the signage controller
+// server.js — handles file uploads, SSH deploys to the Pis,
+// and serves the frontend on localhost
 import express from "express";
 import cors from "cors";
 import multer from "multer";
