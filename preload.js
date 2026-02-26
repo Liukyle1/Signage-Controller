@@ -1,7 +1,4 @@
-// preload.js — Runs in the renderer before page scripts.
-// contextIsolation is ON and nodeIntegration is OFF, so this is a safe bridge.
-// Expose nothing for now — all communication goes through fetch() to the
-// Express server running on localhost.
+// preload — just exposes the platform for now, everything else goes through fetch
 
 const { contextBridge } = require("electron");
 

@@ -1,5 +1,5 @@
-// main.cjs — Electron main process (CommonJS)
-// Starts the Express server as a child process, then opens a BrowserWindow.
+// Electron main process
+// Spins up the Express server, waits for it, then shows the window
 
 const { app, BrowserWindow } = require("electron");
 const path = require("path");
@@ -10,7 +10,7 @@ const PORT = 3000;
 let serverProcess = null;
 let mainWindow = null;
 
-// ── Server lifecycle ───────────────────────────────────────────────
+// --- server management ---
 
 function startServer() {
   const serverPath = path.join(__dirname, "server.js");
@@ -38,7 +38,7 @@ function startServer() {
 function killServer() {
   if (!serverProcess) return;
   try {
-    // On Windows, spawn taskkill to reliably end the child tree
+    // taskkill needed on Windows to kill the whole child process tree
     if (process.platform === "win32") {
       spawn("taskkill", ["/pid", String(serverProcess.pid), "/f", "/t"], {
         windowsHide: true,
@@ -51,7 +51,7 @@ function killServer() {
   serverProcess = null;
 }
 
-// Poll localhost:PORT until the server responds (or give up after ~15 s).
+// keep pinging the server until it answers (gives up after ~15s)
 function waitForServer(maxAttempts = 30) {
   return new Promise((resolve, reject) => {
     let attempts = 0;
@@ -59,8 +59,8 @@ function waitForServer(maxAttempts = 30) {
     function ping() {
       attempts++;
       const req = http.get(`http://localhost:${PORT}/api/pis`, (res) => {
-        res.resume();           // consume response
-        resolve();              // server is up
+        res.resume();
+        resolve();
       });
       req.on("error", () => {
         if (attempts >= maxAttempts) {
@@ -76,7 +76,7 @@ function waitForServer(maxAttempts = 30) {
   });
 }
 
-// ── Window ─────────────────────────────────────────────────────────
+// --- window ---
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -97,7 +97,7 @@ function createWindow() {
   });
 }
 
-// ── App events ─────────────────────────────────────────────────────
+// --- app lifecycle ---
 
 app.whenReady().then(async () => {
   startServer();
@@ -106,7 +106,7 @@ app.whenReady().then(async () => {
     await waitForServer();
   } catch (err) {
     console.error(err.message);
-    // Continue anyway — user can refresh after server is ready
+    // not the end of the world — user can just refresh
   }
 
   createWindow();
@@ -117,7 +117,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
-  // On macOS, apps stay open until Cmd+Q.  On Windows/Linux, quit.
+  // macOS keeps apps alive until Cmd+Q; everywhere else, just quit
   if (process.platform !== "darwin") app.quit();
 });
 

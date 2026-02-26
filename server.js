@@ -1,4 +1,4 @@
-// server.js — Express backend for Signage Controller
+// Express backend for the signage controller
 import express from "express";
 import cors from "cors";
 import multer from "multer";
@@ -17,13 +17,13 @@ const __dirname  = path.dirname(__filename);
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
-// ── Express setup ──────────────────────────────────────────────────
+// --- express setup ---
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// Multer instances
+// file upload handling
 const singleUpload = multer({
   dest: uploadsDir,
   limits: { fileSize: MAX_FILE_SIZE },
@@ -35,7 +35,7 @@ const singleUpload = multer({
   },
 });
 
-// For deploy-all: expect fields named video_pi1, video_pi2, …
+// deploy-all uses separate file fields: video_pi1, video_pi2, etc.
 const multiFields = PIS.map((pi) => ({ name: `video_${pi.id}`, maxCount: 1 }));
 const multiUpload = multer({
   dest: uploadsDir,
@@ -48,7 +48,7 @@ const multiUpload = multer({
   },
 });
 
-// ── Helpers ────────────────────────────────────────────────────────
+// --- helpers ---
 
 function run(cmd, args, timeoutMs = 180_000) {
   return new Promise((resolve, reject) => {
@@ -107,7 +107,7 @@ function tryUnlink(filePath) {
   try { fs.unlinkSync(filePath); } catch { /* ignore */ }
 }
 
-/** Wrap multer to catch its errors as JSON instead of 500 HTML */
+// wraps multer so upload errors come back as JSON, not a raw 500
 function multerWrap(multerFn) {
   return (req, res, next) => {
     multerFn(req, res, (err) => {
@@ -120,11 +120,11 @@ function multerWrap(multerFn) {
   };
 }
 
-// ── Routes ─────────────────────────────────────────────────────────
+// --- routes ---
 
 app.get("/api/pis", (_req, res) => res.json(PIS));
 
-// ── Single-Pi deploy: POST /api/pis/:id/upload-and-deploy ──────────
+// deploy to a single Pi
 app.post("/api/pis/:id/upload-and-deploy",
   multerWrap(singleUpload.single("video")),
   async (req, res) => {
@@ -144,16 +144,14 @@ app.post("/api/pis/:id/upload-and-deploy",
   }
 );
 
-// ── Deploy-all: POST /api/deploy-all ────────────────────────────────
-// Expects multipart fields: video_pi1, video_pi2, video_pi3, video_pi4
-// Any field can be omitted — only Pis with a file attached are deployed.
+// deploy to multiple Pis at once — skip any that don't have a file attached
 app.post("/api/deploy-all",
   multerWrap(multiUpload.fields(multiFields)),
   async (req, res) => {
     const files = req.files || {};
     const tempPaths = [];
 
-    // Build a list of { pi, localFile } pairs for Pis that have a file
+    // pair each Pi with its uploaded file (if any)
     const jobs = PIS.map((pi) => {
       const field = files[`video_${pi.id}`];
       if (!field || field.length === 0) return null;
@@ -197,7 +195,7 @@ app.post("/api/deploy-all",
   }
 );
 
-// ── Legacy: same-video-to-all (kept for backward compat) ───────────
+// same video to all Pis (legacy endpoint)
 app.post("/api/upload-and-deploy",
   multerWrap(singleUpload.single("video")),
   async (req, res) => {
@@ -222,7 +220,7 @@ app.post("/api/upload-and-deploy",
   }
 );
 
-// ── Connectivity test ──────────────────────────────────────────────
+// SSH ping to check which Pis are reachable
 app.get("/api/test-connectivity", async (_req, res) => {
   const results = await Promise.allSettled(PIS.map((pi) => testPi(pi.host)));
   const summary = results.map((r, i) => ({
@@ -233,7 +231,7 @@ app.get("/api/test-connectivity", async (_req, res) => {
   res.json({ ok: summary.every((s) => s.ok), summary });
 });
 
-// ── Start ──────────────────────────────────────────────────────────
+// fire it up
 const port = process.env.PORT || PORT;
 app.listen(port, () => {
   console.log(`Signage Controller server listening on http://localhost:${port}`);

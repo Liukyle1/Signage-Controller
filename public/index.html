@@ -15,7 +15,7 @@
     h1 { font-size: 22px; margin-bottom: 2px; }
     .subtitle { color: #666; font-size: 13px; margin-bottom: 20px; }
 
-    /* ── shared ──────────────────────────────────────────── */
+    /* shared */
     .card {
       background: #fff;
       border: 1px solid #ddd;
@@ -65,7 +65,7 @@
     .s-warn { color: #856404; }
     .s-err  { color: #721c24; }
 
-    /* ── per-Pi grid ─────────────────────────────────────── */
+    /* pi cards grid */
     .pi-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -93,7 +93,7 @@
     .pi-card .file-row input[type="file"] { min-width: 0; flex: 1; }
     .pi-card .file-name { font-size: 11px; color: #555; word-break: break-all; min-height: 16px; }
 
-    /* ── deploy-all section ───────────────────────────────── */
+    /* deploy-all section */
     .deploy-all-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -110,7 +110,7 @@
     .da-slot .label { font-weight: 600; margin-bottom: 4px; font-size: 12px; }
     .da-slot .file-name { font-size: 11px; color: #555; word-break: break-all; min-height: 16px; }
 
-    /* ── results log ─────────────────────────────────────── */
+    /* results log */
     .results {
       margin-top: 10px;
       background: #f8f9fa;
@@ -138,13 +138,13 @@
     <span class="status-msg" id="globalStatus"></span>
   </div>
 
-  <!-- ── Per-Pi Cards ────────────────────────────────────── -->
+  <!-- per-Pi cards -->
   <div class="card">
     <h2>Individual Display Deploy</h2>
     <div class="pi-grid" id="piGrid"></div>
   </div>
 
-  <!-- ── Deploy All ──────────────────────────────────────── -->
+  <!-- batch deploy -->
   <div class="card">
     <h2>Deploy to All Displays</h2>
     <p style="font-size:12px;color:#666;margin-bottom:10px">Pick a different MP4 for each display, then deploy in one batch. Only displays with a file selected will be updated.</p>
@@ -155,10 +155,10 @@
   </div>
 
 <script>
-// ── State ───────────────────────────────────────────────
+// state
 let piList = [];
 
-// ── Init ────────────────────────────────────────────────
+// grab the Pi list from the server, fall back to hardcoded defaults
 (async function init() {
   try {
     const res = await fetch("/api/pis");
@@ -175,7 +175,7 @@ let piList = [];
   renderDeployAllSlots();
 })();
 
-// ── Per-Pi cards ────────────────────────────────────────
+// build the per-Pi card UI
 function renderPiCards() {
   const grid = document.getElementById("piGrid");
   grid.innerHTML = piList.map((pi) => `
@@ -198,7 +198,7 @@ function renderPiCards() {
     </div>
   `).join("");
 
-  // File-name preview listeners
+  // show selected filename under each input
   piList.forEach((pi) => {
     document.getElementById(`file-${pi.id}`).addEventListener("change", (e) => {
       const f = e.target.files[0];
@@ -207,7 +207,7 @@ function renderPiCards() {
   });
 }
 
-// ── Single-Pi deploy ────────────────────────────────────
+// deploy to one Pi
 async function deploySingle(id) {
   const pi = piList.find((p) => p.id === id);
   const fileInput = document.getElementById(`file-${id}`);
@@ -244,7 +244,7 @@ async function deploySingle(id) {
   }
 }
 
-// ── Deploy-all section ──────────────────────────────────
+// deploy-all UI
 function renderDeployAllSlots() {
   const grid = document.getElementById("daGrid");
   grid.innerHTML = piList.map((pi) => `
@@ -287,7 +287,7 @@ document.getElementById("btnDeployAll").addEventListener("click", async () => {
   document.getElementById("btnTest").disabled = true;
   setMsg(status, `Deploying to ${count} display(s)...`, "warn");
 
-  // Set per-Pi badges to busy for Pis with files
+  // show "Deploying..." on each Pi that has a file queued
   piList.forEach((pi) => {
     const input = document.getElementById(`da-file-${pi.id}`);
     if (input.files[0]) {
@@ -305,7 +305,7 @@ document.getElementById("btnDeployAll").addEventListener("click", async () => {
       return;
     }
 
-    // Update per-Pi badges from summary
+    // update badges with results
     data.summary.forEach((s, i) => {
       const badge = document.getElementById(`badge-${piList[i].id}`);
       if (s.skipped) return;
@@ -328,7 +328,7 @@ document.getElementById("btnDeployAll").addEventListener("click", async () => {
   }
 });
 
-// ── Test connectivity ───────────────────────────────────
+// connectivity check
 document.getElementById("btnTest").addEventListener("click", async () => {
   const btn = document.getElementById("btnTest");
   const gStatus = document.getElementById("globalStatus");
@@ -360,7 +360,7 @@ document.getElementById("btnTest").addEventListener("click", async () => {
   }
 });
 
-// ── Helpers ─────────────────────────────────────────────
+// helpers
 function setBadge(el, type, text) {
   if (!el) return;
   el.className = "badge badge-" + type;

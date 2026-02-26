@@ -1,4 +1,4 @@
-// config.js — Central configuration for the Signage Controller
+// Pi targets, SSH settings, upload limits
 
 export const PIS = [
   { id: "pi1", name: "Display 1", host: "192.168.100.10" },
@@ -15,10 +15,10 @@ export const REMOTE_CURRENT  = `${REMOTE_DIR}/current.mp4`;
 
 export const PORT = 3000;
 
-// Max upload size in bytes (500 MB)
+// 500 MB upload cap
 export const MAX_FILE_SIZE = 500 * 1024 * 1024;
 
-// SSH / SCP options to skip host-key prompts
+// skip host-key prompts so deploys don't hang
 export const SSH_OPTS = [
   "-o", "StrictHostKeyChecking=no",
   "-o", "UserKnownHostsFile=/dev/null",
